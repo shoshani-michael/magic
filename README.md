@@ -2,7 +2,7 @@
     <h1>
     Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models <br><br>
      <a href=""> <img alt="paper link" src="https://img.shields.io/badge/Paper-arXiv-red"> </a>
-     <a href="LICENSE"> <img alt="data link" src="https://img.shields.io/badge/Data-InstructMT-blue"> </a> 
+     <a href="data/advbench/harmful_behaviors.csv"> <img alt="data link" src="https://img.shields.io/badge/Data-InstructMT-blue"> </a> 
     </h1>
 </div>
 
@@ -17,11 +17,11 @@ We investigate the process of GCG and identify an issue of **Indirect Effect**, 
 
 We investigate the **Indirect Effect** between the gradient values of current suffixes and the updated token indexes, which demonstrates that replacing tokens with negative gradient values fails to effectively reduce adversarial loss. We carry out this study in 1000 iterations of the naive GCG algorithm.
 
-<figure align="center">
+<div align="center">
     <img src="./assets/heatmap.jpg" width="50%" alt="heatmap" align="center">
-    <figcaption align="center">Fig.1: The heatmap reflecting the changes of the current gradient values.
+    <figcaption align="center">Fig.1: The heatmap reflects the changes of the current gradient values.
 </figcaption>
-</figure>
+</div>
 
 ### Method
 
@@ -35,7 +35,7 @@ We investigate the **Indirect Effect** between the gradient values of current su
 
 ## Start
 
-Using conda to create a environment for MAGIC:
+Using conda to create an environment for MAGIC:
 
 ```bash
 conda create -n magic python=3.10.1
