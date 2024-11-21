@@ -18,7 +18,7 @@ We investigate the process of GCG and identify an issue of **Indirect Effect**, 
 We investigate the **Indirect Effect** between the gradient values of current suffixes and the updated token indexes, which demonstrates that replacing tokens with negative gradient values fails to effectively reduce adversarial loss. We carry out this study in 1000 iterations of the naive GCG algorithm.
 
 <figure align="center">
-    <img src="./assets/heatmap.jpg" width="50%" alt="heatmap">
+    <img src="./assets/heatmap.jpg" width="50%" alt="heatmap" align="center">
     <figcaption align="center">Fig.1: The heatmap reflecting the changes of the current gradient values.
 </figcaption>
 </figure>
@@ -108,4 +108,4 @@ If you find this useful in your research, please consider citing:
 
 **license**
 
-``MAGIC``` is licensed under the terms of the MIT license. See LICENSE for more details.
+```MAGIC``` is licensed under the terms of the MIT license. See LICENSE for more details.
