@@ -92,7 +92,7 @@ We provide a case shows that the suffix optimizated by our MAGIC, successfully j
 
 <div align="center">
     <img src="./assets/example.jpg" width="90%" alt="example">
-    <p>Fig.2: An illustration of our approach MAGIC.</p>
+    <p>Fig.3: Example by MAGIC and response from GPT-4.</p>
 </div>
 
 ## Citation
