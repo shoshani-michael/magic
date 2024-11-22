@@ -103,6 +103,4 @@ If you find this useful in your research, please consider citing:
 
 ## License
 
-**license**
-
-```MAGIC``` is licensed under the terms of the MIT license. See LICENSE for more details.
+```MAGIC``` is licensed under the terms of the MIT license. See [LICENSE](LICENSE) for more details.
