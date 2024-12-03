@@ -56,6 +56,7 @@ def token_gradients(model, input_ids, input_slice, target_slice, loss_slice):
             embeds[:,input_slice.stop:,:]
         ], 
     dim=1)
+
     logits = model(inputs_embeds=full_embeds).logits
     loss = nn.CrossEntropyLoss()(logits[0,loss_slice,:], targets)
     loss.backward()
@@ -124,7 +125,6 @@ class GCGMultiPromptAttack(MultiPromptAttack):
 
     def step(self, 
              batch_size=1024, 
-             beam_size=32, 
              topk=256, 
              temp=1, 
              allow_non_ascii=True, 
@@ -172,6 +172,9 @@ class GCGMultiPromptAttack(MultiPromptAttack):
             for j, cand in enumerate(control_cands):
                 progress = range(len(self.prompts[0]))
                 for i in progress:
+                    # Looping through the prompts at this level is less elegant, but
+                    # we can manage VRAM better this way
+                    progress = tqdm(range(len(self.prompts[0])), total=len(self.prompts[0])) if verbose else enumerate(self.prompts[0])
                     for k, worker in enumerate(self.workers):
                         worker(self.prompts[k][i], "logits", worker.model, cand, return_ids=True)
                     logits, ids = zip(*[worker.results.get() for worker in self.workers])
@@ -187,10 +190,17 @@ class GCGMultiPromptAttack(MultiPromptAttack):
                     del logits, ids ; gc.collect()
                     
                     if verbose:
-                        progress.set_description(f"loss={loss[j*beam_size:(j+1)*beam_size].min().item()/(i+1):.4f}")
+                        progress.set_description(f"loss={loss[j:(j+1)].min().item()/(i+1):.4f}")
+
+            min_idx = loss.argmin()
+            model_idx = min_idx // batch_size
+            batch_idx = min_idx % batch_size
+            next_control, cand_loss = control_cands[model_idx][batch_idx], loss[min_idx]
+            
         del control_cands, loss, min_idx, model_idx, batch_idx ; gc.collect()
         torch.cuda.empty_cache()
 
-        print('Current length:', len(self.workers[0].tokenizer(next_control).input_ids[1:]))
+        # print('Current length:', len(self.workers[0].tokenizer(next_control).input_ids[1:]))
         # print(next_control)
-        return control_cands, loss
+
+        return next_control, cand_loss.item() / len(self.prompts[0]) / len(self.workers)

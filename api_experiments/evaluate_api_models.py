@@ -294,8 +294,3 @@ def main(instruction=None,
         f.close()
     
     print("All records are saved to ", output_file)
-
-        
-
-
-    

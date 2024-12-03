@@ -1,7 +1,6 @@
 '''A main script to run attack for LLMs.'''
 import os, sys
 import time
-import torch
 import importlib
 import numpy as np
 import torch.multiprocessing as mp
@@ -15,8 +14,7 @@ warnings.filterwarnings("ignore")
 
 _CONFIG = config_flags.DEFINE_config_file('config')
 
-torch.manual_seed(28)
-# os.chdir(sys.path[0])
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # Function to import module at the runtime
 def dynamic_import(module):
@@ -64,7 +62,6 @@ def main(_):
             mpa_deterministic=params.gbda_deterministic,
             mpa_lr=params.lr,
             mpa_batch_size=params.batch_size,
-            mpa_beam_size=params.beam_size,
             mpa_n_steps=params.n_steps,
         )
     else:
@@ -81,14 +78,11 @@ def main(_):
             mpa_deterministic=params.gbda_deterministic,
             mpa_lr=params.lr,
             mpa_batch_size=params.batch_size,
-            mpa_beam_size=params.beam_size,
             mpa_n_steps=params.n_steps,
         )
-
     attack.run(
         n_steps=params.n_steps,
         batch_size=params.batch_size, 
-        beam_size=params.beam_size, 
         topk=params.topk,
         temp=params.temp,
         target_weight=params.target_weight,

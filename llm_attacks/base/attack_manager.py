@@ -26,6 +26,8 @@ class NpEncoder(json.JSONEncoder):
             return int(obj)
         if isinstance(obj, np.floating):
             return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
@@ -254,7 +256,7 @@ class AttackPrompt(object):
             gen_config = model.generation_config
             gen_config.max_new_tokens = self.test_new_toks
         gen_str = self.generate_str(model, gen_config).strip()
-        print('\n', gen_str)
+        # print('\n', gen_str)
         jailbroken = not any([prefix in gen_str for prefix in self.test_prefixes])
         em = self.target in gen_str
         return jailbroken, int(em), gen_str
@@ -645,38 +647,6 @@ class MultiPromptAttack(object):
                 cands = cands + [cands[-1]] * (len(control_cand) - len(cands))
             # print(f"Warning: {round(count / len(control_cand), 2)} control candidates were not valid")
         return cands
-    
-    def stop_success(self):
-        train_goals, train_targets, test_goals, test_targets = self.goals, self.targets, self.test_goals, self.test_targets
-        control_single = [self.control_str]
-        attack = EvaluateAttack(
-            train_goals,
-            train_targets,
-            self.workers,
-            test_prefixes=self.test_prefixes,
-            managers=self.managers,
-            test_goals=test_goals,
-            test_targets=test_targets
-        )
-        curr_total_jb, curr_total_em, curr_test_total_jb, curr_test_total_em, curr_total_outputs, curr_test_total_outputs\
-        = attack.run(
-            range(len(control_single)),
-            control_single,
-            batch_size=512,
-            max_new_len=200,
-            verbose=False
-        )
-        if curr_total_jb[0][0] and curr_total_em[0][0]:
-            with open(self.logfile, 'r') as f:
-                log = json.load(f)
-            log['controls'].append(self.control_str)
-            log['losses'].append([])
-            log['runtimes'].append('runtime')
-            log['tests'].append([self.control_str, curr_total_outputs])
-            with open(self.logfile, 'w') as f:
-                json.dump(log, f, indent=4, cls=NpEncoder)
-            return True
-        return False
 
     def step(self, *args, **kwargs):
         
@@ -684,8 +654,7 @@ class MultiPromptAttack(object):
     
     def run(self, 
         n_steps=100, 
-        batch_size=1024, 
-        beam_size=32, 
+        batch_size=1024,  
         topk=256, 
         temp=1, 
         allow_non_ascii=True,
@@ -705,20 +674,6 @@ class MultiPromptAttack(object):
             T = max(1 - float(k+1)/(n_steps+anneal_from), 1.e-7)
             return True if e_prime < e else math.exp(-(e_prime-e)/T) >= random.random()
 
-        def add_if_maxest_fixed_length(d, key, value, max_length=beam_size):
-            if len(d) < max_length:
-                d[key] = value
-                self.history_str_list.append(key)
-                return True
-            else:
-                max_key = max(d, key=d.get)
-                if value < d[max_key]:
-                    del d[max_key]
-                    d[key] = value
-                    self.history_str_list.append(key)
-                    return True
-            return False
-
         if target_weight is None:
             target_weight_fn = lambda _: 1
         elif isinstance(target_weight, (int, float)):
@@ -728,94 +683,67 @@ class MultiPromptAttack(object):
         elif isinstance(control_weight, (int, float)):
             control_weight_fn = lambda i: control_weight
         
+        steps = 0
         loss = best_loss = 1e6
         best_control = self.control_str
-        self.control_str_list = [self.control_str] * beam_size
+        runtime = 0.
 
         if self.logfile is not None and log_first:
-            with open(self.logfile, 'r') as f:
-                log = json.load(f)
-            log['controls'].append(self.control_str)
-            log['losses'].append(best_loss)
-            log['runtimes'].append(runtime)
-            log['tests'].append([])
-            with open(self.logfile, 'w') as f:
-                json.dump(log, f, indent=4, cls=NpEncoder)
+            model_tests = self.test_all()
+            self.log(anneal_from, 
+                     n_steps+anneal_from, 
+                     self.control_str, 
+                     loss, 
+                     runtime, 
+                     model_tests, 
+                     verbose=verbose)
+    
+        for i in range(n_steps):
 
-        self.history_str_list = [self.control_str]
-        new_control_str_dic = {}
-        for i in tqdm(range(n_steps)):
-            runtime = 0.
-            if i: 
-                self.control_str_list = list(new_control_str_dic.keys())
-                new_control_str_dic = {}
-
-            for suffix in tqdm(self.control_str_list):
-                self.control_str = suffix
-                
-                start = time.time()
-                control_cands, loss_cands = self.step(
-                    batch_size=batch_size, 
-                    beam_size=beam_size, 
-                    topk=topk, 
-                    temp=temp, 
-                    allow_non_ascii=allow_non_ascii, 
-                    target_weight=target_weight_fn(i), 
-                    control_weight=control_weight_fn(i),
-                    filter_cand=filter_cand,
-                    verbose=verbose
-                )
-                mini_time = time.time() - start
-                runtime += mini_time
-
-                loss_values, loss_indices = torch.topk(loss_cands, beam_size, largest=False)
-                selected_cands = [control_cands[0][i] for i in loss_indices]
-                
-                for cand_idx in range(beam_size):
-                    control_cand = selected_cands[cand_idx % beam_size]
-                    loss_cand = loss_values[cand_idx].item() / len(self.prompts[0]) / len(self.workers)
-                    keep_control = True if not anneal else P(prev_loss, loss_cand, i+anneal_from)
-                    if keep_control:
-                        if not add_if_maxest_fixed_length(new_control_str_dic, control_cand, loss_cand, beam_size): 
-                            break
-                    prev_loss = loss_cand
-                
-                control, loss = selected_cands[0], loss_values[0].item() / len(self.prompts[0]) / len(self.workers)
-                prev_loss = loss
-                if loss < best_loss:
-                    best_loss = loss
-                    best_control = control
-                del control_cands, loss_cands, loss_values, loss_indices, selected_cands; gc.collect()
-                torch.cuda.empty_cache()
-                print('Step:', i+1, ' Current Loss:', loss, 'Best Loss:', best_loss, 'Run Time: %.2f' % mini_time)
-
-            last_control = self.control_str
-            self.control_str = best_control
-
-            if self.logfile is not None and ((i+1+anneal_from) % test_steps == 0 or i==n_steps-1):
-                model_tests = self.test_all()
-                self.log(i+1+anneal_from, n_steps+anneal_from, list(new_control_str_dic.keys()), list(new_control_str_dic.values()), runtime, model_tests, verbose=verbose)
-                if i==n_steps-1:
-                    with open(self.logfile, 'r') as f:
-                        log = json.load(f)
-                        log['controls'].append(self.history_str_list[0])
-                        log['losses'].append(best_loss)
-                        log['runtimes'].append(runtime)
-                        log['tests'].append([])
-                    with open(self.logfile, 'w') as f:
-                        json.dump(log, f, indent=4, cls=NpEncoder)
-
-            if stop_on_success and int(model_tests[1][0][0]):
-                self.control_str = last_control
-                if  self.stop_success():
+            if stop_on_success:
+                model_tests_jb, model_tests_mb, model_tests_loss, model_tests_str = self.test(self.workers, self.prompts)
+                if all(all(tests for tests in model_test) for model_test in model_tests_jb):
                     break
-            self.control_str = last_control
-        return self.control_str, loss, i
+
+            steps += 1
+            start = time.time()
+            torch.cuda.empty_cache()
+            control, loss = self.step(
+                batch_size=batch_size, 
+                topk=topk, 
+                temp=temp, 
+                allow_non_ascii=allow_non_ascii, 
+                target_weight=target_weight_fn(i), 
+                control_weight=control_weight_fn(i),
+                filter_cand=filter_cand,
+                verbose=verbose
+            )
+            runtime = time.time() - start
+            keep_control = True if not anneal else P(prev_loss, loss, i+anneal_from)
+            if keep_control:
+                self.control_str = control
+            
+            prev_loss = loss
+            if loss < best_loss:
+                best_loss = loss
+                best_control = control
+            print('Current Loss:', loss, 'Best Loss:', best_loss)
+
+            if self.logfile is not None and (i+1+anneal_from) % test_steps == 0:
+                last_control = self.control_str
+                self.control_str = best_control
+
+                model_tests = self.test_all()
+                self.log(i+1+anneal_from, n_steps+anneal_from, self.control_str, best_loss, runtime, model_tests, verbose=verbose)
+
+                self.control_str = last_control
+
+        return self.control_str, loss, steps
 
     def test(self, workers, prompts, include_loss=False):
         for j, worker in enumerate(workers):
             worker(prompts[j], "test", worker.model)
-        model_tests = np.array([worker.results.get() for worker in workers])
+        model_tests = np.array([worker.results.get() for worker in workers], dtype=object)
         model_tests_jb = model_tests[...,0].tolist()
         model_tests_mb = model_tests[...,1].tolist()
         model_tests_str = model_tests[...,2].tolist()
@@ -865,9 +793,9 @@ class MultiPromptAttack(object):
             ]
             for i in range(len(all_goal_strs))
         }
-        n_passed = self.parse_results(np.array([ast.literal_eval(item) for item in prompt_tests_jb.flatten()]).reshape(prompt_tests_jb.shape))
-        n_em = self.parse_results(np.array(prompt_tests_mb.tolist(), dtype=int).reshape(prompt_tests_mb.shape))
-        n_loss = self.parse_results(np.array(model_tests_loss.tolist(), dtype=float).reshape(model_tests_loss.shape))
+        n_passed = self.parse_results(prompt_tests_jb)
+        n_em = self.parse_results(prompt_tests_mb)
+        n_loss = self.parse_results(model_tests_loss)
         total_tests = self.parse_results(np.ones(prompt_tests_jb.shape, dtype=int))
         n_loss = [l / t if t > 0 else 0 for l, t in zip(n_loss, total_tests)]
 
@@ -875,15 +803,14 @@ class MultiPromptAttack(object):
         tests['n_em'] = n_em
         tests['n_loss'] = n_loss
         tests['total'] = total_tests
-        tests['control'] = self.control_str
 
         with open(self.logfile, 'r') as f:
             log = json.load(f)
-        if isinstance(control, list) and isinstance(loss, list):
-            log['history'].append(dict(zip(control, loss)))
-            log['runtimes'].append(runtime)
-            if any(n_passed):
-                log['tests'].append(tests)
+        
+        log['controls'].append(control)
+        log['losses'].append(loss)
+        log['runtimes'].append(runtime)
+        log['tests'].append(tests)
 
         with open(self.logfile, 'w') as f:
             json.dump(log, f, indent=4, cls=NpEncoder)
@@ -1227,7 +1154,6 @@ class IndividualPromptAttack(object):
                         },
                         'controls': [],
                         'losses': [],
-                        'history': [],
                         'runtimes': [],
                         'tests': []
                     }, f, indent=4
@@ -1244,7 +1170,6 @@ class IndividualPromptAttack(object):
     def run(self, 
             n_steps: int = 1000, 
             batch_size: int = 1024, 
-            beam_size: int = 32, 
             topk: int = 256, 
             temp: float = 1., 
             allow_non_ascii: bool = True,
@@ -1298,7 +1223,6 @@ class IndividualPromptAttack(object):
             log['params']['n_steps'] = n_steps
             log['params']['test_steps'] = test_steps
             log['params']['batch_size'] = batch_size
-            log['params']['beam_size'] = beam_size
             log['params']['topk'] = topk
             log['params']['temp'] = temp
             log['params']['allow_non_ascii'] = allow_non_ascii
@@ -1332,7 +1256,6 @@ class IndividualPromptAttack(object):
             attack.run(
                 n_steps=n_steps,
                 batch_size=batch_size,
-                beam_size=beam_size,
                 topk=topk,
                 temp=temp,
                 allow_non_ascii=allow_non_ascii,
@@ -1538,7 +1461,6 @@ class ModelWorker(object):
             trust_remote_code=True,
             **model_kwargs
         ).to(device).eval()
-        # self.model.requires_grad_(False)  # disable grads wrt weights
         self.tokenizer = tokenizer
         self.conv_template = conv_template
         self.tasks = mp.JoinableQueue()
@@ -1603,7 +1525,7 @@ def get_workers(params, eval=False):
         if 'guanaco' in params.tokenizer_paths[i]:
             tokenizer.eos_token_id = 2
             tokenizer.unk_token_id = 0
-        if 'llama-2' in params.tokenizer_paths[i]:
+        if 'llama-2' in params.tokenizer_paths[i].lower():
             tokenizer.pad_token = tokenizer.unk_token
             tokenizer.padding_side = 'left'
         if 'falcon' in params.tokenizer_paths[i]:

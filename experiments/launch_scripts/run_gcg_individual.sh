@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 export WANDB_MODE=disabled
 
 # Optionally set the cache for transformers
@@ -18,7 +16,7 @@ else
     echo "Folder '../results' already exists."
 fi
 
-for data_offset in $data_offset_param
+for data_offset in 0 10 20 30 40 50 60 70 80 90
 do
 
     python -u ../main.py \

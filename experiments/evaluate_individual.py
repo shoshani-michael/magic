@@ -42,10 +42,10 @@ _test_prefixes = [
     ]
 
 _MODELS = {
-    "LLaMA-2-7B": ["/public/home/hongy/jiahli/DIR/llama-2-7b-chat-hf", {"use_fast": False}, "llama-2", 512]
+    "LLaMA-2-7B": ["/DIR/llama-2-7b-chat-hf", {"use_fast": False}, "llama-2", 512]
 }
 _MODELS = {
-    "Vicuna-7B": ["/public/home/hongy/jiahli/DIR/vicuna/vicuna-7b-v1.3", {"use_fast": False}, "vicuna", 512]
+    "Vicuna-7B": ["/DIR/vicuna/vicuna-7b-v1.3", {"use_fast": False}, "vicuna", 512]
 }
 
 def main(_):
