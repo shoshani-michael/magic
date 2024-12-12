@@ -1,13 +1,12 @@
 <div align="center">
     <h1>
     Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models <br><br>
-     <a href=""> <img alt="paper link" src="https://img.shields.io/badge/Paper-arXiv-red"> </a>
+     <a href="https://arxiv.org/abs/2412.08615"> <img alt="paper link" src="https://img.shields.io/badge/Paper-arXiv-red"> </a>
      <a href="data/advbench/harmful_behaviors.csv"> <img alt="data link" src="https://img.shields.io/badge/Data-InstructMT-blue"> </a> 
     </h1>
 </div>
 
-This code repository is the implementation of our paper: Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models 
-**link**
+This code repository is the implementation of our paper: [Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models](https://arxiv.org/abs/2412.08615), accepted by The 31st International Conference on Computational Linguistics.
 
 ## MAGIC
 
@@ -98,8 +97,17 @@ We provide a case shows that the suffix optimizated by our MAGIC, successfully j
 ## Citation
 
 If you find this useful in your research, please consider citing:
-
-**link**
+```
+@misc{li2024exploitingindexgradientsoptimizationbased,
+      title={Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models}, 
+      author={Jiahui Li and Yongchang Hao and Haoyu Xu and Xing Wang and Yu Hong},
+      year={2024},
+      eprint={2412.08615},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2412.08615}, 
+}
+```
 
 ## License
 
