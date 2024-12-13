@@ -4,7 +4,7 @@ export MODEL=$1
 export DATASET=$2
 keywords=($MODEL $DATASET)
 
-folder_path="/public/home/hongy/jiahli/llm-attacks/experiments/results"
+folder_path=".../llm-attacks/experiments/results"
 matching_files=()
 for filename in "$folder_path"/*; do
     match=true

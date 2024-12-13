@@ -304,7 +304,7 @@ class AttackPrompt(object):
             ))
         
         locs = torch.arange(self._control_slice.start, self._control_slice.stop).repeat(test_ids.shape[0], 1).to(model.device)
-        # 这一步，使用512个候选controls替代了init_control，输出了ids.shape=[512,170]
+
         ids = torch.scatter(
             self.input_ids.unsqueeze(0).repeat(test_ids.shape[0], 1).to(model.device),
             1,
