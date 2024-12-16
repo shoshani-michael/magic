@@ -6,7 +6,7 @@
     </h1>
 </div>
 
-This code repository is the implementation of our paper: [Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models](https://arxiv.org/abs/2412.08615), accepted by The 31st International Conference on Computational Linguistics.
+This code repository is the implementation of our paper: [Exploiting the Index Gradients for Optimization-Based Jailbreaking on Large Language Models](https://arxiv.org/abs/2412.08615), accepted by COLING 2025.
 
 ## MAGIC
 
